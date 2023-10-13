@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Serilog;
 using Xunit;
 
 namespace Insurance.Tests
@@ -13,10 +15,12 @@ namespace Insurance.Tests
     public class InsuranceTests: IClassFixture<ControllerTestFixture>
     {
         private readonly ControllerTestFixture _fixture;
+        private readonly Microsoft.Extensions.Logging.ILogger<InsuranceController> _logger;
 
         public InsuranceTests(ControllerTestFixture fixture)
         {
             _fixture = fixture;
+            _logger = new LoggerFactory().CreateLogger<InsuranceController>();
         }
 
         [Fact]
@@ -28,7 +32,7 @@ namespace Insurance.Tests
                       {
                           ProductId = 1,
                       };
-            var sut = new HomeController();
+            var sut = new InsuranceController(_logger);
 
             var result = sut.CalculateInsurance(dto);
 
@@ -44,7 +48,7 @@ namespace Insurance.Tests
             {
                           ProductId = 2,
                       };
-            var sut = new HomeController();
+            var sut = new InsuranceController(_logger);
 
             var result = sut.CalculateInsurance(dto);
 
@@ -60,7 +64,8 @@ namespace Insurance.Tests
             {
                           ProductId = 3,
                       };
-            var sut = new HomeController();
+
+            var sut = new InsuranceController(_logger);
 
             var result = sut.CalculateInsurance(dto);
 
@@ -76,7 +81,7 @@ namespace Insurance.Tests
             {
                           ProductId = 4,
                       };
-            var sut = new HomeController();
+            var sut = new InsuranceController(_logger);
 
             var result = sut.CalculateInsurance(dto);
 
