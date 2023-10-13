@@ -16,21 +16,26 @@ namespace Insurance.Api.Controllers
             BusinessRules.GetProductType(ProductApi, productId, ref toInsure);
             BusinessRules.GetSalesPrice(ProductApi, productId, ref toInsure);
 
-            float insurance = 0f;
+            toInsure.InsuranceValue = 0f; //Do we ever need to do this?
 
-            if (toInsure.SalesPrice < 500)
-                toInsure.InsuranceValue = 0;
-            else
+            if (!toInsure.ProductTypeHasInsurance)
+                return toInsure;
+
+            switch(toInsure.SalesPrice)
             {
-                if (toInsure.SalesPrice > 500 && toInsure.SalesPrice < 2000)
-                    if (toInsure.ProductTypeHasInsurance)
-                        toInsure.InsuranceValue += 1000;
-                if (toInsure.SalesPrice >= 2000)
-                    if (toInsure.ProductTypeHasInsurance)
-                        toInsure.InsuranceValue += 2000;
-                if (toInsure.ProductTypeName == "Laptops" || toInsure.ProductTypeName == "Smartphones" && toInsure.ProductTypeHasInsurance)
-                    toInsure.InsuranceValue += 500;
+                case < 500:
+                    toInsure.InsuranceValue = 0;
+                    break;
+                case >= 500 and < 2000:
+                    toInsure.InsuranceValue += 1000;
+                    break;
+                case >= 2000:
+                    toInsure.InsuranceValue += 2000;
+                    break;
             }
+
+            if (toInsure.ProductTypeName == "Laptops" || toInsure.ProductTypeName == "Smartphones") //TODO: Don't hardcode this, also we probably shouldn't do this using the name instead of the ID
+                toInsure.InsuranceValue += 500;
 
             return toInsure;
         }
