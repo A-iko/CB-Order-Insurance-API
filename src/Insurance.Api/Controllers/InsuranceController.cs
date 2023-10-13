@@ -19,15 +19,14 @@ namespace Insurance.Api.Controllers
         {
             int productId = toInsure.ProductId;
 
-            BusinessRules.GetProductType(ProductApi, productId, ref toInsure);
-            BusinessRules.GetSalesPrice(ProductApi, productId, ref toInsure);
+            var product = BusinessRules.GetProduct(ProductApi, productId);
 
             toInsure.InsuranceValue = 0f; //Do we ever need to do this?
 
-            if (!toInsure.ProductTypeHasInsurance)
+            if (!product.ProductType.CanBeInsured)
                 return toInsure;
 
-            switch (toInsure.SalesPrice)
+            switch (product.SalesPrice)
             {
                 case < 500:
                     toInsure.InsuranceValue = 0;
@@ -40,7 +39,7 @@ namespace Insurance.Api.Controllers
                     break;
             }
 
-            if (toInsure.ProductTypeName == "Laptops" || toInsure.ProductTypeName == "Smartphones") //TODO: Don't hardcode this, also we probably shouldn't do this using the name instead of the ID
+            if (product.ProductType.Name == "Laptops" || product.ProductType.Name == "Smartphones") //TODO: Don't hardcode this, also we probably shouldn't do this using the name instead of the ID
                 toInsure.InsuranceValue += 500;
 
             _logger.LogDebug("Insurance value for product {0} is {1}", toInsure.ProductId, toInsure.InsuranceValue);
