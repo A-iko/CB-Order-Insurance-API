@@ -1,12 +1,18 @@
-using System.Net;
-using System.Net.Http;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Text.Json.Serialization;
 
 namespace Insurance.Api.Controllers
 {
-    public class HomeController: Controller
+
+    public class InsuranceController : Controller
     {
+        private readonly ILogger<InsuranceController> _logger;
+        public InsuranceController(ILogger<InsuranceController> logger)
+        {
+            _logger = logger;
+        }
+
         [HttpPost]
         [Route("api/insurance/product")]
         public InsuranceDto CalculateInsurance([FromBody] InsuranceDto toInsure)
@@ -21,7 +27,7 @@ namespace Insurance.Api.Controllers
             if (!toInsure.ProductTypeHasInsurance)
                 return toInsure;
 
-            switch(toInsure.SalesPrice)
+            switch (toInsure.SalesPrice)
             {
                 case < 500:
                     toInsure.InsuranceValue = 0;
@@ -36,6 +42,8 @@ namespace Insurance.Api.Controllers
 
             if (toInsure.ProductTypeName == "Laptops" || toInsure.ProductTypeName == "Smartphones") //TODO: Don't hardcode this, also we probably shouldn't do this using the name instead of the ID
                 toInsure.InsuranceValue += 500;
+
+            _logger.LogDebug("Insurance value for product {0} is {1}", toInsure.ProductId, toInsure.InsuranceValue);
 
             return toInsure;
         }

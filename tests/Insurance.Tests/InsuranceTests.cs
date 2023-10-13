@@ -24,7 +24,7 @@ namespace Insurance.Tests
         {
             const float expectedInsuranceValue = 1000;
 
-            var dto = new HomeController.InsuranceDto
+            var dto = new InsuranceController.InsuranceDto
                       {
                           ProductId = 1,
                       };
@@ -40,7 +40,7 @@ namespace Insurance.Tests
         {
             const float expectedInsuranceValue = 500;
 
-            var dto = new HomeController.InsuranceDto
+            var dto = new InsuranceController.InsuranceDto
             {
                           ProductId = 2,
                       };
@@ -56,7 +56,7 @@ namespace Insurance.Tests
         {
             const float expectedInsuranceValue = 2500;
 
-            var dto = new HomeController.InsuranceDto
+            var dto = new InsuranceController.InsuranceDto
             {
                           ProductId = 3,
                       };
@@ -72,7 +72,7 @@ namespace Insurance.Tests
         {
             const float expectedInsuranceValue = 0;
 
-            var dto = new HomeController.InsuranceDto
+            var dto = new InsuranceController.InsuranceDto
             {
                           ProductId = 4,
                       };
