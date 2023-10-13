@@ -10,7 +10,7 @@ namespace Insurance.Api
 {
     public static class BusinessRules
     {
-        public static void GetProductType(string baseAddress, int productID, ref HomeController.InsuranceDto insurance)
+        public static void GetProductType(string baseAddress, int productID, ref InsuranceController.InsuranceDto insurance)
         {
             HttpClient client = new HttpClient{ BaseAddress = new Uri(baseAddress)};
             string json = client.GetAsync("/product_types").Result.Content.ReadAsStringAsync().Result;
@@ -20,14 +20,12 @@ namespace Insurance.Api
             var product = JsonConvert.DeserializeObject<dynamic>(json);
 
             int productTypeId = product.productTypeId;
-            string productTypeName = null;
-            bool hasInsurance = false;
 
-            insurance = new HomeController.InsuranceDto();
+            insurance = new InsuranceController.InsuranceDto();
 
             for (int i = 0; i < collection.Count; i++)
             {
-                if (collection[i].id == productTypeId && collection[i].canBeInsured == true)
+                if (collection[i].id == productTypeId && (bool)collection[i].canBeInsured)
                 {
                     insurance.ProductTypeName = collection[i].name;
                     insurance.ProductTypeHasInsurance = true;
@@ -35,7 +33,7 @@ namespace Insurance.Api
             }
         }
 
-        public static void GetSalesPrice(string baseAddress, int productID, ref HomeController.InsuranceDto insurance)
+        public static void GetSalesPrice(string baseAddress, int productID, ref InsuranceController.InsuranceDto insurance)
         {
             HttpClient client = new HttpClient{ BaseAddress = new Uri(baseAddress)};
             string json = client.GetAsync(string.Format("/products/{0:G}", productID)).Result.Content.ReadAsStringAsync().Result;
