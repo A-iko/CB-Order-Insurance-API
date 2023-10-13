@@ -4,42 +4,24 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Insurance.Api.Controllers;
-using Newtonsoft.Json;
+using System.Text.Json;
+using Insurance.Api.Models.ProductAPI;
 
 namespace Insurance.Api
 {
     public static class BusinessRules
     {
-        public static void GetProductType(string baseAddress, int productID, ref InsuranceController.InsuranceDto insurance)
+        public static Product GetProduct(string baseAddress, int productID)
         {
             HttpClient client = new HttpClient{ BaseAddress = new Uri(baseAddress)};
-            string json = client.GetAsync("/product_types").Result.Content.ReadAsStringAsync().Result;
-            var collection = JsonConvert.DeserializeObject<dynamic>(json);
 
-            json = client.GetAsync(string.Format("/products/{0:G}", productID)).Result.Content.ReadAsStringAsync().Result;
-            var product = JsonConvert.DeserializeObject<dynamic>(json);
+            var productJson = client.GetAsync(string.Format("/products/{0:G}", productID)).Result.Content.ReadAsStringAsync().Result;
+            var product = JsonSerializer.Deserialize<Product>(productJson);
 
-            int productTypeId = product.productTypeId;
+            var productTypeJson = client.GetAsync(string.Format("/product_types/{0:G}", product.ProductTypeId)).Result.Content.ReadAsStringAsync().Result;
+            product.ProductType = JsonSerializer.Deserialize<ProductType>(productTypeJson);
 
-            insurance = new InsuranceController.InsuranceDto();
-
-            for (int i = 0; i < collection.Count; i++)
-            {
-                if (collection[i].id == productTypeId && (bool)collection[i].canBeInsured)
-                {
-                    insurance.ProductTypeName = collection[i].name;
-                    insurance.ProductTypeHasInsurance = true;
-                }
-            }
-        }
-
-        public static void GetSalesPrice(string baseAddress, int productID, ref InsuranceController.InsuranceDto insurance)
-        {
-            HttpClient client = new HttpClient{ BaseAddress = new Uri(baseAddress)};
-            string json = client.GetAsync(string.Format("/products/{0:G}", productID)).Result.Content.ReadAsStringAsync().Result;
-            var product = JsonConvert.DeserializeObject<dynamic>(json);
-
-            insurance.SalesPrice = product.salesPrice;
+            return product;
         }
     }
 }

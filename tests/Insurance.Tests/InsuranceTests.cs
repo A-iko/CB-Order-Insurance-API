@@ -1,5 +1,5 @@
-using System;
 using Insurance.Api.Controllers;
+using Insurance.Api.Models.ProductAPI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Serilog;
+using System;
 using Xunit;
 
 namespace Insurance.Tests
@@ -168,6 +168,53 @@ namespace Insurance.Tests
                         }
                     );
                     ep.MapGet(
+                        "product_types/{id:int}",
+                        context =>
+                        {
+                            int productTypeId = int.Parse((string)context.Request.RouteValues["id"]);
+                            var productType = new
+                            {
+                                id = 1,
+                                name = "Test type",
+                                canBeInsured = true
+                            };
+                            switch (productTypeId)
+                            {
+                                case 1:
+                                    break;
+                                case 2:
+                                    productType = new
+                                    {
+                                        id = 2,
+                                        name = "Laptops",
+                                        canBeInsured = true
+                                    };
+                                    break;
+                                case 3:
+                                    productType = new
+                                    {
+                                        id = 3,
+                                        name = "Smartphones",
+                                        canBeInsured = true
+                                    };
+                                    break;
+                                case 4:
+                                    productType = new
+                                    {
+                                        id = 4,
+                                        name = "The Uninsurables",
+                                        canBeInsured = false
+                                    };
+                                    break;
+                                default:
+                                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                                    return context.Response.WriteAsync("Not found");
+                            }
+
+                            return context.Response.WriteAsync(JsonConvert.SerializeObject(productType));
+                        }
+                    );
+                    ep.MapGet(
                         "product_types",
                         context =>
                         {
@@ -198,6 +245,7 @@ namespace Insurance.Tests
                                                        canBeInsured = false
                                                    },
                                                };
+
                             return context.Response.WriteAsync(JsonConvert.SerializeObject(productTypes));
                         }
                     );
