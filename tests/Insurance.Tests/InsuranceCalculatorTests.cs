@@ -1,91 +1,122 @@
+using Insurance.Api.BusinessLogic;
+using Insurance.Api.Clients;
 using Insurance.Api.Controllers;
-using Insurance.Api.Models.ProductAPI;
+using Insurance.Api.Models.ProductApi;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Insurance.Tests
 {
-    public class InsuranceTests: IClassFixture<ControllerTestFixture>
+    public class InsuranceCalculatorTests: IClassFixture<ControllerTestFixture>
     {
         private readonly ControllerTestFixture _fixture;
-        private readonly Microsoft.Extensions.Logging.ILogger<InsuranceController> _logger;
+        private readonly Microsoft.Extensions.Logging.ILogger<InsuranceCalculator> _logger;
+        private readonly ProductApiClient _productApiClient;
 
-        public InsuranceTests(ControllerTestFixture fixture)
+        public InsuranceCalculatorTests(ControllerTestFixture fixture)
         {
             _fixture = fixture;
-            _logger = new LoggerFactory().CreateLogger<InsuranceController>();
+            var loggerFactory = new LoggerFactory();
+            _logger = loggerFactory.CreateLogger<InsuranceCalculator>();
+
+            var httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri("http://localhost:5002"); //New code
+
+            var mockFactory = new Mock<IHttpClientFactory>();
+            mockFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(httpClient);
+
+            _productApiClient = new ProductApiClient(loggerFactory.CreateLogger<ProductApiClient>(), new Microsoft.Extensions.Options.OptionsWrapper<ProductApiClientConfiguration>(new ProductApiClientConfiguration()), mockFactory.Object);
         }
 
         [Fact]
-        public void CalculateInsurance_GivenSalesPriceBetween500And2000Euros_ShouldAdd1000EurosToInsuranceCost()
+        public async Task CalculateInsurance_GivenSalesPriceBetween500And2000Euros_ShouldAdd1000EurosToInsuranceCost()
         {
             const float expectedInsuranceValue = 1000;
+            const int productId = 1;
 
-            var dto = new InsuranceController.InsuranceDto
-                      {
-                          ProductId = 1,
-                      };
-            var sut = new InsuranceController(_logger);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
 
-            var result = sut.CalculateInsurance(dto);
+            var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(expectedInsuranceValue, result.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
         }
 
         [Fact]
-        public void CalculateInsurance_GivenLaptopUnder500Euros_ShouldReturn500Euros()
+        public async Task CalculateInsurance_GivenLaptopUnder500Euros_ShouldReturn500Euros()
         {
             const float expectedInsuranceValue = 500;
+            const int productId = 2;
 
-            var dto = new InsuranceController.InsuranceDto
-            {
-                          ProductId = 2,
-                      };
-            var sut = new InsuranceController(_logger);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
 
-            var result = sut.CalculateInsurance(dto);
+            var result = await insuranceCalculator.CalculateInsurance(2);
 
-            Assert.Equal(expectedInsuranceValue, result.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
         }
 
         [Fact]
-        public void CalculateInsurance_GivenSmartphoneOver2000Euros_ShouldReturn2500Euros()
+        public async Task CalculateInsurance_GivenSmartphoneOver2000Euros_ShouldReturn2500Euros()
         {
             const float expectedInsuranceValue = 2500;
+            const int productId = 3;
 
-            var dto = new InsuranceController.InsuranceDto
-            {
-                          ProductId = 3,
-                      };
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
 
-            var sut = new InsuranceController(_logger);
+            var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            var result = sut.CalculateInsurance(dto);
-
-            Assert.Equal(expectedInsuranceValue, result.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
         }
 
         [Fact]
-        public void CalculateInsurance_GivenUninsurableProduct_ShouldReturn0Euros()
+        public async Task CalculateInsurance_GivenUninsurableProduct_ShouldReturn0Euros()
         {
             const float expectedInsuranceValue = 0;
+            const int productId = 4;
 
-            var dto = new InsuranceController.InsuranceDto
-            {
-                          ProductId = 4,
-                      };
-            var sut = new InsuranceController(_logger);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
 
-            var result = sut.CalculateInsurance(dto);
+            var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(expectedInsuranceValue, result.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
+        }
+
+        [Fact]
+        public async Task CalculateInsurance_GivenUnavailableProductType_ShouldReturnNotFound()
+        {
+            const int productId = 5;
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+
+            var result = await insuranceCalculator.CalculateInsurance(productId);
+
+            Assert.Equal(InsuranceCalculatorResult.NotFound, result.insuranceCalculatorResult);
+        }
+
+        [Fact]
+        public async Task CalculateInsurance_GivenUnavailableProduct_ShouldReturnNotFound()
+        {
+            const int productId = 6;
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+
+            var result = await insuranceCalculator.CalculateInsurance(productId);
+
+            Assert.Equal(InsuranceCalculatorResult.NotFound, result.insuranceCalculatorResult);
         }
     }
 
@@ -156,6 +187,15 @@ namespace Insurance.Tests
                                         id = productId,
                                         name = "Test Uninsurable",
                                         productTypeId = 4,
+                                        salesPrice = 2000
+                                    };
+                                    break;
+                                case 5:
+                                    product = new
+                                    {
+                                        id = productId,
+                                        name = "Test Bad ProductType",
+                                        productTypeId = 5,
                                         salesPrice = 2000
                                     };
                                     break;
