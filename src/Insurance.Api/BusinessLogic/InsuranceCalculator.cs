@@ -18,7 +18,7 @@ namespace Insurance.Api.BusinessLogic
             _productApiClient = productApiClient;
         }
 
-        public async Task<InsuranceCalculatorResult<CartInsuranceDto>> CalculateInsurance(List<int> productIds)
+        public async Task<BusinessLogicResult<CartInsuranceDto>> CalculateInsurance(List<int> productIds)
         {
             var insuranceDtos = new List<InsuranceDto>();
 
@@ -26,33 +26,33 @@ namespace Insurance.Api.BusinessLogic
             {
                 var insuranceDtoResult = await CalculateInsurance(productId);
 
-                switch (insuranceDtoResult.insuranceCalculatorResult)
+                switch (insuranceDtoResult.businessLogicResult)
                 {
-                    case InsuranceCalculatorResultEnum.NotFound:
-                        return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
-                    case InsuranceCalculatorResultEnum.Error:
-                        return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.Error);
-                    case InsuranceCalculatorResultEnum.Success:
+                    case BusinessLogicResultEnum.NotFound:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.NotFound);
+                    case BusinessLogicResultEnum.Error:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.Error);
+                    case BusinessLogicResultEnum.Success:
                         break;
                 }
 
                 insuranceDtos.Add(insuranceDtoResult.data);
             }
 
-            return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.Success, new CartInsuranceDto(insuranceDtos));
+            return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.Success, new CartInsuranceDto(insuranceDtos));
         }
 
-        public async Task<InsuranceCalculatorResult<InsuranceDto>> CalculateInsurance(int productId)
+        public async Task<BusinessLogicResult<InsuranceDto>> CalculateInsurance(int productId)
         {
             var productResult = await _productApiClient.GetProduct(productId);
 
             switch (productResult.productApiResult)
             {
                 case ProductApiResultEnum.NotFound:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
+                    return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.NotFound);
                 case ProductApiResultEnum.DeserializationError:
                 case ProductApiResultEnum.Error:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Error);
+                    return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.Error);
                 case ProductApiResultEnum.Success:
                     break;
             }
@@ -64,10 +64,10 @@ namespace Insurance.Api.BusinessLogic
             switch (productTypeResult.productApiResult)
             {
                 case ProductApiResultEnum.NotFound:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
+                    return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.NotFound);
                 case ProductApiResultEnum.DeserializationError:
                 case ProductApiResultEnum.Error:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Error);
+                    return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.Error);
                 case ProductApiResultEnum.Success:
                     break;
             }
@@ -81,7 +81,7 @@ namespace Insurance.Api.BusinessLogic
             };
 
             if (!product.ProductType.CanBeInsured)
-                return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Success, insuranceDto);
+                return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.Success, insuranceDto);
 
             switch (product.SalesPrice)
             {
@@ -101,7 +101,7 @@ namespace Insurance.Api.BusinessLogic
 
             _logger.LogDebug("Insurance value for product {0} is {1}", insuranceDto.ProductId, insuranceDto.InsuranceValue);
 
-            return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Success, insuranceDto);
+            return new BusinessLogicResult<InsuranceDto>(BusinessLogicResultEnum.Success, insuranceDto);
         }
     }
 }

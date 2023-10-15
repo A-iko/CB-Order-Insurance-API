@@ -6,7 +6,8 @@ namespace Insurance.Api.BusinessLogic.Extensions
     {
         public static IServiceCollection AddBusinessLogic(this IServiceCollection services)
         {
-            services.AddSingleton<InsuranceCalculator>();
+            services.AddScoped<InsuranceCalculator>();
+            services.AddScoped<SurchargeRuleManager>();
             return services;
         }
     }

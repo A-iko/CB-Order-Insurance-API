@@ -1,6 +1,6 @@
 ﻿namespace Insurance.Api.Models
 {
-    public enum InsuranceCalculatorResultEnum
+    public enum BusinessLogicResultEnum
     {
         Success,
         NotFound,

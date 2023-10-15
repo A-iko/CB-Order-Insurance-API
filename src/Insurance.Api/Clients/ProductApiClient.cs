@@ -76,5 +76,32 @@ namespace Insurance.Api.Clients
                 return new ProductApiResult<ProductType>(ProductApiResultEnum.DeserializationError);
             }
         }
+
+        public async Task<ProductApiResult<List<ProductType>>> GetProductTypes()
+        {
+            var productTypeResponse = await _httpClient.GetAsync(string.Format("/product_types"));
+            switch (productTypeResponse.StatusCode)
+            {
+                case HttpStatusCode.NotFound:
+                    _logger.LogWarning("Product types could not be found");
+                    return new ProductApiResult<List<ProductType>>(ProductApiResultEnum.NotFound);
+                case HttpStatusCode.OK:
+                    break;
+                default:
+                    _logger.LogError("ProductApi returned an unexpected statuscode while getting product types: {0}", productTypeResponse.ReasonPhrase);
+                    return new ProductApiResult<List<ProductType>>(ProductApiResultEnum.Error);
+            }
+
+            try
+            {
+                var productTypes = JsonSerializer.Deserialize<List<ProductType>>(productTypeResponse.Content.ReadAsStringAsync().Result);
+                return new ProductApiResult<List<ProductType>>(ProductApiResultEnum.Success, productTypes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return new ProductApiResult<List<ProductType>>(ProductApiResultEnum.DeserializationError);
+            }
+        }
     }
 }

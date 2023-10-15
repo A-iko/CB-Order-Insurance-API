@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Microsoft.EntityFrameworkCore;
+using Insurance.Api.Data;
+using Microsoft.Extensions.Configuration;
+using System.Diagnostics.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +19,18 @@ builder.Services.AddBusinessLogic();
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+builder.Services.AddDbContext<InsuranceDbContext>(options =>
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("InsuranceDb"));
+});
 
 var app = builder.Build();
+
+using (var serviceScope = app.Services.GetRequiredService<IServiceScopeFactory>().CreateScope())
+{
+    var context = serviceScope.ServiceProvider.GetService<InsuranceDbContext>();
+    context.Database.Migrate();
+}
 
 app.UseSerilogRequestLogging();
 
