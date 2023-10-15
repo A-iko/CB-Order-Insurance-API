@@ -20,3 +20,4 @@ The Swagger UI contains explanation for each endpoint.
 # Further development
 - [ ] Optimize the fetching of products, we currently have to fetch them one by one because the product api does not support fetching multiple products at once.
 - [ ] Create interfaces for the repositories and services, so that we can easily switch between different implementations.
+- [ ] Add github actions for building the .net project and creating artifacts when tagged
