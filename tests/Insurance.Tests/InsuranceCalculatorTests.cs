@@ -1,7 +1,7 @@
 using Insurance.Api.BusinessLogic;
 using Insurance.Api.Clients;
 using Insurance.Api.Controllers;
-using Insurance.Api.Models.ProductApi;
+using Insurance.Api.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -12,21 +12,21 @@ using Moq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
+using static System.Net.WebRequestMethods;
 
 namespace Insurance.Tests
 {
     public class InsuranceCalculatorTests: IClassFixture<ControllerTestFixture>
     {
-        private readonly ControllerTestFixture _fixture;
-        private readonly Microsoft.Extensions.Logging.ILogger<InsuranceCalculator> _logger;
+        private readonly ILogger<InsuranceCalculator> _logger;
         private readonly ProductApiClient _productApiClient;
 
-        public InsuranceCalculatorTests(ControllerTestFixture fixture)
+        public InsuranceCalculatorTests()
         {
-            _fixture = fixture;
             var loggerFactory = new LoggerFactory();
             _logger = loggerFactory.CreateLogger<InsuranceCalculator>();
 
@@ -36,9 +36,10 @@ namespace Insurance.Tests
             var mockFactory = new Mock<IHttpClientFactory>();
             mockFactory.Setup(_ => _.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-            _productApiClient = new ProductApiClient(loggerFactory.CreateLogger<ProductApiClient>(), new Microsoft.Extensions.Options.OptionsWrapper<ProductApiClientConfiguration>(new ProductApiClientConfiguration()), mockFactory.Object);
+            _productApiClient = new ProductApiClient(loggerFactory.CreateLogger<ProductApiClient>(), new Microsoft.Extensions.Options.OptionsWrapper<ProductApiClientConfiguration>(new ProductApiClientConfiguration() { BaseAddress = "http://localhost:5002" }), mockFactory.Object);
         }
 
+        //Tests for the single product call
         [Fact]
         public async Task CalculateInsurance_GivenSalesPriceBetween500And2000Euros_ShouldAdd1000EurosToInsuranceCost()
         {
@@ -49,8 +50,8 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
         }
 
         [Fact]
@@ -63,8 +64,8 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(2);
 
-            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
         }
 
         [Fact]
@@ -77,8 +78,8 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
         }
 
         [Fact]
@@ -91,8 +92,8 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResult.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.insuranceDto.InsuranceValue);
+            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
         }
 
         [Fact]
@@ -104,7 +105,7 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResult.NotFound, result.insuranceCalculatorResult);
+            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
         }
 
         [Fact]
@@ -116,11 +117,52 @@ namespace Insurance.Tests
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResult.NotFound, result.insuranceCalculatorResult);
+            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
         }
-    }
 
-    public class ControllerTestFixture: IDisposable
+        //Tests for the cart call
+        [Fact]
+        public async Task CalculateCartInsurance_GivenSalesPriceBetween500And2000Euros_ShouldSetTotalInsuranceTo1500()
+        {
+            //Manual calculation of expectedInsuranceValue:
+            //Product 1: 750 => 1000
+            var product1InsuranceValue = 1000;
+            //Product 2: 400 => 0 - Laptop => 500
+            var product2InsuranceValue = 500;
+            //Product 3: 2000 => 2000 - Smartphone => 500
+            var product3InsuranceValue = 2500;
+            //Product 4: Uninsurable => 0
+            var product4InsuranceValue = 0;
+
+            var productIds = new List<int>{ 1, 2, 3, 4 };
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+
+            var result = await insuranceCalculator.CalculateInsurance(productIds);
+
+            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(product1InsuranceValue, result.data.InsuredProducts[0].InsuranceValue);
+            Assert.Equal(product2InsuranceValue, result.data.InsuredProducts[1].InsuranceValue);
+            Assert.Equal(product3InsuranceValue, result.data.InsuredProducts[2].InsuranceValue);
+            Assert.Equal(product4InsuranceValue, result.data.InsuredProducts[3].InsuranceValue);
+            Assert.Equal(product1InsuranceValue + product2InsuranceValue + product3InsuranceValue + product4InsuranceValue, result.data.TotalInsuranceValue);
+        }
+
+        [Fact]
+        public async Task CalculateCartInsurance_GivenUnavailableProduct_ShouldReturnNotFound()
+        {
+            //Product 6 does not exist
+            var productIds = new List<int> { 1, 2, 6 };
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+
+            var result = await insuranceCalculator.CalculateInsurance(productIds);
+
+            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
+        }
+
+    }
+    public class ControllerTestFixture : IDisposable
     {
         private readonly IHost _host;
 

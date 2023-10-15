@@ -1,12 +1,12 @@
 using Insurance.Api.BusinessLogic;
 using Insurance.Api.Clients;
-using Insurance.Api.Models.ProductApi;
 using Insurance.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace Insurance.Api.Controllers
 {
@@ -29,13 +29,30 @@ namespace Insurance.Api.Controllers
 
             switch (insuranceDtoResult.insuranceCalculatorResult)
             {
-                case InsuranceCalculatorResult.NotFound:
+                case InsuranceCalculatorResultEnum.NotFound:
                     return NotFound();                    
-                case InsuranceCalculatorResult.Error:
+                case InsuranceCalculatorResultEnum.Error:
                     return StatusCode((int)HttpStatusCode.InternalServerError);                    
             }
 
-            return Ok(insuranceDtoResult);
+            return Ok(insuranceDtoResult.data);
+        }
+
+        [HttpPost]
+        [Route("api/insurance/products/")]
+        public async Task<ActionResult<CartInsuranceDto>> CalculateInsurance([FromBody] List<int> productIds)
+        {
+            var insuranceDtoResult = await _insuranceCalculator.CalculateInsurance(productIds);
+
+            switch (insuranceDtoResult.insuranceCalculatorResult)
+            {
+                case InsuranceCalculatorResultEnum.NotFound:
+                    return NotFound();
+                case InsuranceCalculatorResultEnum.Error:
+                    return StatusCode((int)HttpStatusCode.InternalServerError);
+            }
+
+            return Ok(insuranceDtoResult.data);
         }
     }
 }
