@@ -5,13 +5,8 @@ namespace Insurance.Api.Models
 {
     public class CartInsuranceDto
     {
-        public float TotalInsuranceValue { get; set; }
+        public decimal TotalInsuranceValue { get; set; } = 0;
+        public decimal CartSurchargeValue { get; set; } = 0;
         public List<InsuranceDto> InsuredProducts { get; set; }
-
-        public CartInsuranceDto(List<InsuranceDto> insuredProducts)
-        {
-            InsuredProducts = insuredProducts;
-            TotalInsuranceValue = InsuredProducts.Sum(x => x.InsuranceValue);
-        }
     }
 }

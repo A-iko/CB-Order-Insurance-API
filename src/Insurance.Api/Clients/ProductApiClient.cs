@@ -79,7 +79,7 @@ namespace Insurance.Api.Clients
 
         public async Task<ProductApiResult<List<ProductType>>> GetProductTypes()
         {
-            var productTypeResponse = await _httpClient.GetAsync(string.Format("/product_types"));
+            var productTypeResponse = await _httpClient.GetAsync("/product_types");
             switch (productTypeResponse.StatusCode)
             {
                 case HttpStatusCode.NotFound:

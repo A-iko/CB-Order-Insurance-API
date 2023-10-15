@@ -63,7 +63,7 @@ namespace Insurance.Api.BusinessLogic
                     break;
             }
 
-            var surchargeRules = _dbContext.ProductTypeSurchargeRules.FirstOrDefault();
+            var surchargeRules = _dbContext.ProductTypeSurchargeRules.FirstOrDefault(x => x.ProductTypeId == ProductTypeId);
             if(surchargeRules == null)
             {
                 return new BusinessLogicResult<ProductTypeSurchargeRule>(BusinessLogicResultEnum.NotFound);

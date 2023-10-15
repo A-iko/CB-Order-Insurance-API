@@ -7,9 +7,9 @@ namespace Insurance.Api.Data.Models
         [Key]
         public int ProductTypeId { get; set; }
 
-        public int FlatItemSurcharge { get; set; }
-        public int FlatCartSurcharge { get; set; }
-        public int PercentageItemSurcharge { get; set; }
+        public decimal FlatItemSurcharge { get; set; }
+        public decimal FlatCartSurcharge { get; set; }
+        public decimal PercentageItemSurcharge { get; set; }
 
         public ProductTypeSurchargeRule(int productTypeId)
         {

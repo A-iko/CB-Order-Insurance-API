@@ -16,6 +16,7 @@ using Xunit;
 
 namespace Insurance.Tests
 {
+    [Collection("RunSequentially")]
     public class SurchargeRuleManagerTests : IClassFixture<ControllerTestFixture>
     {
         private readonly ILogger<InsuranceCalculator> _logger;
@@ -127,7 +128,7 @@ namespace Insurance.Tests
             var surchargeRuleManager = CreateSurchargeRuleManager(dbContext);
 
             //Act
-            var result = surchargeRuleManager.GetSurchargeRulesForProductTypes().Result;
+            var result = surchargeRuleManager.GetSurchargeRulesForProductType(6).Result;
 
             //Assert
             Assert.Equal(BusinessLogicResultEnum.NotFound, result.businessLogicResult);
