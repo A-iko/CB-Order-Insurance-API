@@ -17,6 +17,9 @@ Note: If you want to run the unit tests, you might have to turn off the product 
 # Usage
 The Swagger UI contains explanation for each endpoint.
 
+# Design Decisions
+Design decisions are documented in the (closed) issues here on Github, this way they're easy to find back when using git blame.
+
 # Further development
 - [ ] Optimize the fetching of products, we currently have to fetch them one by one because the product api does not support fetching multiple products at once.
 - [ ] Create interfaces for the repositories and services, so that we can easily switch between different implementations.
