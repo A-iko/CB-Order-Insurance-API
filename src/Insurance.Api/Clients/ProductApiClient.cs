@@ -15,15 +15,12 @@ namespace Insurance.Api.Clients
     public class ProductApiClient
     {
         private readonly ILogger _logger;
-        private readonly ProductApiClientConfiguration _configuration;
         private readonly HttpClient _httpClient;
-        private readonly string _baseAddress;
         public ProductApiClient(ILogger<ProductApiClient> logger, IOptions<ProductApiClientConfiguration> configuration, IHttpClientFactory httpClientFactory)
         {
             _logger = logger;
-            _configuration = configuration.Value;
-            _baseAddress = _configuration.BaseAddress;
             _httpClient = httpClientFactory.CreateClient();
+            _httpClient.BaseAddress = new Uri(configuration.Value.BaseAddress);
         }
 
         public async Task<ProductApiResult<Product>> GetProduct(int productId)

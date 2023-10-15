@@ -1,5 +1,5 @@
-using Insurance.Api.Clients;
 using Insurance.Api.Clients.Extensions;
+using Insurance.Api.BusinessLogic.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration));
 
 builder.Services.AddClients(builder.Configuration);
+builder.Services.AddBusinessLogic();
 builder.Services.AddControllers();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
