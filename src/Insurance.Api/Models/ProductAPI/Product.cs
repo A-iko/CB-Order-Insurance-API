@@ -9,7 +9,7 @@ namespace Insurance.Api.Models.ProductApi
         [JsonPropertyName("name")]
         public string Name { get; set; }
         [JsonPropertyName("salesPrice")]
-        public float SalesPrice { get; set; }
+        public decimal SalesPrice { get; set; }
         [JsonPropertyName("productTypeId")]
         public int ProductTypeId { get; set; }
         [JsonIgnore]

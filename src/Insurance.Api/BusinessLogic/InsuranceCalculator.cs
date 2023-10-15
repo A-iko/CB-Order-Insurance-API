@@ -1,9 +1,11 @@
 ﻿using Insurance.Api.Clients;
-using Insurance.Api.Controllers;
+using Insurance.Api.Data;
 using Insurance.Api.Models;
 using Insurance.Api.Models.ProductApi;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Insurance.Api.BusinessLogic
@@ -12,96 +14,109 @@ namespace Insurance.Api.BusinessLogic
     {
         private readonly ILogger<InsuranceCalculator> _logger;
         private readonly ProductApiClient _productApiClient;
-        public InsuranceCalculator(ILogger<InsuranceCalculator> logger, ProductApiClient productApiClient)
+        private readonly InsuranceDbContext _dbContext;
+
+        public InsuranceCalculator(
+            ILogger<InsuranceCalculator> logger,
+            ProductApiClient productApiClient,
+            InsuranceDbContext dbContext)
         {
             _logger = logger;
             _productApiClient = productApiClient;
+            _dbContext = dbContext;
         }
 
-        public async Task<InsuranceCalculatorResult<CartInsuranceDto>> CalculateInsurance(List<int> productIds)
+        public async Task<BusinessLogicResult<CartInsuranceDto>> CalculateInsurance(int productId)
+        {
+            var cartInsuranceDtoResult = await CalculateInsurance(new List<int> { productId });
+
+            return cartInsuranceDtoResult;
+        }
+
+        public async Task<BusinessLogicResult<CartInsuranceDto>> CalculateInsurance(List<int> productIds)
         {
             var insuranceDtos = new List<InsuranceDto>();
-
-            foreach (var productId in productIds)
+            var flatCartSurcharges = new Dictionary<int, decimal>();
+            foreach(var productId in productIds)
             {
-                var insuranceDtoResult = await CalculateInsurance(productId);
+                var productResult = await _productApiClient.GetProduct(productId);
 
-                switch (insuranceDtoResult.insuranceCalculatorResult)
+                switch(productResult.productApiResult)
                 {
-                    case InsuranceCalculatorResultEnum.NotFound:
-                        return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
-                    case InsuranceCalculatorResultEnum.Error:
-                        return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.Error);
-                    case InsuranceCalculatorResultEnum.Success:
+                    case ProductApiResultEnum.NotFound:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.NotFound);
+                    case ProductApiResultEnum.DeserializationError:
+                    case ProductApiResultEnum.Error:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.Error);
+                    case ProductApiResultEnum.Success:
                         break;
                 }
 
-                insuranceDtos.Add(insuranceDtoResult.data);
+                var product = productResult.data;
+
+                var productTypeResult = await _productApiClient.GetProductType(product.ProductTypeId);
+
+                switch(productTypeResult.productApiResult)
+                {
+                    case ProductApiResultEnum.NotFound:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.NotFound);
+                    case ProductApiResultEnum.DeserializationError:
+                    case ProductApiResultEnum.Error:
+                        return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.Error);
+                    case ProductApiResultEnum.Success:
+                        break;
+                }
+
+                product.ProductType = productTypeResult.data;
+
+                var insuranceDto = new InsuranceDto { ProductId = product.Id, InsuranceValue = 0 };
+
+                if(product.ProductType.CanBeInsured)
+                {
+                    //TODO: Move this to the database?
+                    switch(product.SalesPrice)
+                    {
+                        case < 500:
+                            insuranceDto.InsuranceValue = 0;
+                            break;
+                        case >= 500 and < 2000:
+                            insuranceDto.InsuranceValue += 1000;
+                            break;
+                        case >= 2000:
+                            insuranceDto.InsuranceValue += 2000;
+                            break;
+                    }
+
+                    //Apply surcharge rules
+                    var surchargeRules = _dbContext.ProductTypeSurchargeRules.Find(product.ProductTypeId);
+                    if(surchargeRules != null)
+                    {
+                        insuranceDto.InsuranceValue += surchargeRules.FlatItemSurcharge;
+                        if(surchargeRules.PercentageItemSurcharge > 0 && product.SalesPrice > 0)
+                            insuranceDto.InsuranceValue += product.SalesPrice *
+                                (surchargeRules.PercentageItemSurcharge / 100);
+                        if(!flatCartSurcharges.ContainsKey(product.ProductTypeId))
+                            flatCartSurcharges[product.ProductTypeId] = surchargeRules.FlatCartSurcharge;
+                    }
+
+                    //I'm assuming we need to round to 2 decimal places here, but I would ask the business for clarification. See https://www.youtube.com/watch?v=yZjCQ3T5yXo
+                    insuranceDto.InsuranceValue = Decimal.Round(insuranceDto.InsuranceValue, 2);
+                }
+
+                _logger.LogDebug(
+                    "Insurance value for product {0} is {1}",
+                    insuranceDto.ProductId,
+                    insuranceDto.InsuranceValue);
+                insuranceDtos.Add(insuranceDto);
             }
 
-            return new InsuranceCalculatorResult<CartInsuranceDto>(InsuranceCalculatorResultEnum.Success, new CartInsuranceDto(insuranceDtos));
-        }
+            var cartInsuranceDto = new CartInsuranceDto();
+            cartInsuranceDto.InsuredProducts = insuranceDtos;
+            cartInsuranceDto.CartSurchargeValue = flatCartSurcharges.Values.Sum();
+            cartInsuranceDto.TotalInsuranceValue = insuranceDtos.Sum(x => x.InsuranceValue) +
+                cartInsuranceDto.CartSurchargeValue;
 
-        public async Task<InsuranceCalculatorResult<InsuranceDto>> CalculateInsurance(int productId)
-        {
-            var productResult = await _productApiClient.GetProduct(productId);
-
-            switch (productResult.productApiResult)
-            {
-                case ProductApiResultEnum.NotFound:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
-                case ProductApiResultEnum.DeserializationError:
-                case ProductApiResultEnum.Error:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Error);
-                case ProductApiResultEnum.Success:
-                    break;
-            }
-
-            var product = productResult.data;
-
-            var productTypeResult = await _productApiClient.GetProductType(product.ProductTypeId);
-
-            switch (productTypeResult.productApiResult)
-            {
-                case ProductApiResultEnum.NotFound:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.NotFound);
-                case ProductApiResultEnum.DeserializationError:
-                case ProductApiResultEnum.Error:
-                    return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Error);
-                case ProductApiResultEnum.Success:
-                    break;
-            }
-
-            product.ProductType = productTypeResult.data;
-
-            var insuranceDto = new InsuranceDto
-            {
-                ProductId = product.Id,
-                InsuranceValue = 0f
-            };
-
-            if (!product.ProductType.CanBeInsured)
-                return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Success, insuranceDto);
-
-            switch (product.SalesPrice)
-            {
-                case < 500:
-                    insuranceDto.InsuranceValue = 0;
-                    break;
-                case >= 500 and < 2000:
-                    insuranceDto.InsuranceValue += 1000;
-                    break;
-                case >= 2000:
-                    insuranceDto.InsuranceValue += 2000;
-                    break;
-            }
-
-            if (product.ProductType.Name == "Laptops" || product.ProductType.Name == "Smartphones") //TODO: Don't hardcode this, also we probably shouldn't do this using the name instead of the ID
-                insuranceDto.InsuranceValue += 500;
-
-            _logger.LogDebug("Insurance value for product {0} is {1}", insuranceDto.ProductId, insuranceDto.InsuranceValue);
-
-            return new InsuranceCalculatorResult<InsuranceDto>(InsuranceCalculatorResultEnum.Success, insuranceDto);
+            return new BusinessLogicResult<CartInsuranceDto>(BusinessLogicResultEnum.Success, cartInsuranceDto);
         }
     }
 }

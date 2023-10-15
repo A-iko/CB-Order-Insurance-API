@@ -1,11 +1,14 @@
 using Insurance.Api.BusinessLogic;
 using Insurance.Api.Clients;
 using Insurance.Api.Controllers;
+using Insurance.Api.Data.Models;
 using Insurance.Api.Models;
+using Insurance.Api.Models.ProductApi;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -20,6 +23,7 @@ using static System.Net.WebRequestMethods;
 
 namespace Insurance.Tests
 {
+    [Collection("RunSequentially")]
     public class InsuranceCalculatorTests: IClassFixture<ControllerTestFixture>
     {
         private readonly ILogger<InsuranceCalculator> _logger;
@@ -43,87 +47,123 @@ namespace Insurance.Tests
         [Fact]
         public async Task CalculateInsurance_GivenSalesPriceBetween500And2000Euros_ShouldAdd1000EurosToInsuranceCost()
         {
-            const float expectedInsuranceValue = 1000;
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            const decimal expectedInsuranceValue = 1000;
             const int productId = 1;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
         }
 
         [Fact]
         public async Task CalculateInsurance_GivenLaptopUnder500Euros_ShouldReturn500Euros()
         {
-            const float expectedInsuranceValue = 500;
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 2,
+                FlatItemSurcharge = 500,
+                FlatCartSurcharge = 0,
+                PercentageItemSurcharge = 0
+            });
+
+            const decimal expectedInsuranceValue = 500;
             const int productId = 2;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
-            var result = await insuranceCalculator.CalculateInsurance(2);
+            var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
         }
 
         [Fact]
         public async Task CalculateInsurance_GivenSmartphoneOver2000Euros_ShouldReturn2500Euros()
         {
-            const float expectedInsuranceValue = 2500;
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 3,
+                FlatItemSurcharge = 500,
+                FlatCartSurcharge = 0,
+                PercentageItemSurcharge = 0
+            });
+            const decimal expectedInsuranceValue = 2500;
             const int productId = 3;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
         }
 
         [Fact]
         public async Task CalculateInsurance_GivenUninsurableProduct_ShouldReturn0Euros()
         {
-            const float expectedInsuranceValue = 0;
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            const decimal expectedInsuranceValue = 0;
             const int productId = 4;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
-            Assert.Equal(expectedInsuranceValue, result.data.InsuranceValue);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
         }
 
         [Fact]
         public async Task CalculateInsurance_GivenUnavailableProductType_ShouldReturnNotFound()
         {
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
             const int productId = 5;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
+            Assert.Equal(BusinessLogicResultEnum.NotFound, result.businessLogicResult);
         }
 
         [Fact]
         public async Task CalculateInsurance_GivenUnavailableProduct_ShouldReturnNotFound()
         {
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
             const int productId = 6;
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productId);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
+            Assert.Equal(BusinessLogicResultEnum.NotFound, result.businessLogicResult);
         }
 
         //Tests for the cart call
         [Fact]
         public async Task CalculateCartInsurance_GivenSalesPriceBetween500And2000Euros_ShouldSetTotalInsuranceTo1500()
         {
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 2,
+                FlatItemSurcharge = 500,
+                FlatCartSurcharge = 0,
+                PercentageItemSurcharge = 0
+            });
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 3,
+                FlatItemSurcharge = 500,
+                FlatCartSurcharge = 0,
+                PercentageItemSurcharge = 0
+            });
             //Manual calculation of expectedInsuranceValue:
             //Product 1: 750 => 1000
             var product1InsuranceValue = 1000;
@@ -136,11 +176,11 @@ namespace Insurance.Tests
 
             var productIds = new List<int>{ 1, 2, 3, 4 };
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productIds);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.Success, result.insuranceCalculatorResult);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
             Assert.Equal(product1InsuranceValue, result.data.InsuredProducts[0].InsuranceValue);
             Assert.Equal(product2InsuranceValue, result.data.InsuredProducts[1].InsuranceValue);
             Assert.Equal(product3InsuranceValue, result.data.InsuredProducts[2].InsuranceValue);
@@ -149,190 +189,66 @@ namespace Insurance.Tests
         }
 
         [Fact]
-        public async Task CalculateCartInsurance_GivenUnavailableProduct_ShouldReturnNotFound()
+        public async Task CalculateInsurance_Given10PercentageSurcharge_Returns2200()
         {
-            //Product 6 does not exist
-            var productIds = new List<int> { 1, 2, 6 };
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 3,
+                FlatItemSurcharge = 0,
+                FlatCartSurcharge = 0,
+                PercentageItemSurcharge = 10
+            });
 
-            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient);
+            const decimal expectedInsuranceValue = 2200;
+            const int productId = 3;
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
+
+            var result = await insuranceCalculator.CalculateInsurance(productId);
+
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
+        }
+
+        [Fact]
+        public async Task CalculateInsurance_Given1000FlatCartSurcharge_Returns5000()
+        {
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            dbContext.Add(new ProductTypeSurchargeRule()
+            {
+                ProductTypeId = 3,
+                FlatItemSurcharge = 0,
+                FlatCartSurcharge = 1000,
+                PercentageItemSurcharge = 0
+            });
+
+            //This product has a value of 2000, making the surcharge 2 * 2000 + 1000 = 5000
+            const decimal expectedInsuranceValue = 5000;
+            var productIds = new List<int> { 3, 3 };
+
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
 
             var result = await insuranceCalculator.CalculateInsurance(productIds);
 
-            Assert.Equal(InsuranceCalculatorResultEnum.NotFound, result.insuranceCalculatorResult);
+            Assert.Equal(BusinessLogicResultEnum.Success, result.businessLogicResult);
+            Assert.Equal(1000, result.data.CartSurchargeValue);
+            Assert.Equal(expectedInsuranceValue, result.data.TotalInsuranceValue);
         }
 
-    }
-    public class ControllerTestFixture : IDisposable
-    {
-        private readonly IHost _host;
-
-        public ControllerTestFixture()
+        [Fact]
+        public async Task CalculateCartInsurance_GivenUnavailableProduct_ShouldReturnNotFound()
         {
-            _host = new HostBuilder()
-                   .ConfigureWebHostDefaults(
-                        b => b.UseUrls("http://localhost:5002")
-                              .UseStartup<ControllerTestStartup>()
-                    )
-                   .Build();
+            var dbContext = new ConnectionFactory().CreateSQLiteContext();
+            //Product 6 does not exist
+            var productIds = new List<int> { 1, 2, 6 };
 
-            _host.Start();
+            var insuranceCalculator = new InsuranceCalculator(_logger, _productApiClient, dbContext);
+
+            var result = await insuranceCalculator.CalculateInsurance(productIds);
+
+            Assert.Equal(BusinessLogicResultEnum.NotFound, result.businessLogicResult);
         }
 
-        public void Dispose() => _host.Dispose();
-    }
-
-    public class ControllerTestStartup
-    {
-        public void Configure(IApplicationBuilder app)
-        {
-            app.UseRouting();
-            app.UseEndpoints(
-                ep =>
-                {
-                    ep.MapGet(
-                        "products/{id:int}",
-                        context =>
-                        {
-                            int productId = int.Parse((string) context.Request.RouteValues["id"]);
-                            var product = new
-                                            {
-                                                id = productId,
-                                                name = "Test Product",
-                                                productTypeId = 1,
-                                                salesPrice = 750
-                                            };
-                            switch (productId)
-                            {
-                                case 1:
-                                    break;
-                                case 2:
-                                    product = new
-                                    {
-                                        id = productId,
-                                        name = "Test Laptop",
-                                        productTypeId = 2,
-                                        salesPrice = 400
-                                    };
-                                    break;
-                                case 3:
-                                    product = new
-                                    {
-                                        id = productId,
-                                        name = "Test Smartphone",
-                                        productTypeId = 3,
-                                        salesPrice = 2000
-                                    };
-                                    break;
-                                case 4:
-                                    product = new
-                                    {
-                                        id = productId,
-                                        name = "Test Uninsurable",
-                                        productTypeId = 4,
-                                        salesPrice = 2000
-                                    };
-                                    break;
-                                case 5:
-                                    product = new
-                                    {
-                                        id = productId,
-                                        name = "Test Bad ProductType",
-                                        productTypeId = 5,
-                                        salesPrice = 2000
-                                    };
-                                    break;
-                                default:
-                                    context.Response.StatusCode = StatusCodes.Status404NotFound;
-                                    return context.Response.WriteAsync("Not found");
-                            }
-
-                            return context.Response.WriteAsync(JsonConvert.SerializeObject(product));
-                        }
-                    );
-                    ep.MapGet(
-                        "product_types/{id:int}",
-                        context =>
-                        {
-                            int productTypeId = int.Parse((string)context.Request.RouteValues["id"]);
-                            var productType = new
-                            {
-                                id = 1,
-                                name = "Test type",
-                                canBeInsured = true
-                            };
-                            switch (productTypeId)
-                            {
-                                case 1:
-                                    break;
-                                case 2:
-                                    productType = new
-                                    {
-                                        id = 2,
-                                        name = "Laptops",
-                                        canBeInsured = true
-                                    };
-                                    break;
-                                case 3:
-                                    productType = new
-                                    {
-                                        id = 3,
-                                        name = "Smartphones",
-                                        canBeInsured = true
-                                    };
-                                    break;
-                                case 4:
-                                    productType = new
-                                    {
-                                        id = 4,
-                                        name = "The Uninsurables",
-                                        canBeInsured = false
-                                    };
-                                    break;
-                                default:
-                                    context.Response.StatusCode = StatusCodes.Status404NotFound;
-                                    return context.Response.WriteAsync("Not found");
-                            }
-
-                            return context.Response.WriteAsync(JsonConvert.SerializeObject(productType));
-                        }
-                    );
-                    ep.MapGet(
-                        "product_types",
-                        context =>
-                        {
-                            var productTypes = new[]
-                                               {
-                                                   new
-                                                   {
-                                                       id = 1,
-                                                       name = "Test type",
-                                                       canBeInsured = true
-                                                   },
-                                                   new
-                                                   {
-                                                       id = 2,
-                                                       name = "Laptops",
-                                                       canBeInsured = true
-                                                   },
-                                                   new
-                                                   {
-                                                       id = 3,
-                                                       name = "Smartphones",
-                                                       canBeInsured = true
-                                                   },
-                                                   new
-                                                   {
-                                                       id = 4,
-                                                       name = "The Uninsurables",
-                                                       canBeInsured = false
-                                                   },
-                                               };
-
-                            return context.Response.WriteAsync(JsonConvert.SerializeObject(productTypes));
-                        }
-                    );
-                }
-            );
-        }
     }
 }
